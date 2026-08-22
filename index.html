@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RDD CGRS Citizen Helpdesk</title>
+  <style>
+    :root {
+      --primary-color: #0056b3;
+      --primary-hover: #004085;
+      --bg-color: #f4f7f9;
+      --chat-bg: #ffffff;
+      --user-msg: #dcf8c6;
+      --bot-msg: #f1f0f0;
+      --text-dark: #222222;
+      --border-color: #e0e0e0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #eef2f5; height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+    /* Launcher Button */
+    .chat-launcher {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 14px 22px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    /* Container */
+    .chat-container {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 380px;
+      height: 580px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 100px);
+      background-color: var(--chat-bg);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+
+    .hidden { display: none !important; }
+    .chat-container.hidden { display: none; }
+
+    .didi-avatar {
+      width: 58px;
+      height: 58px;
+      flex: 0 0 58px;
+      border: 4px solid #f4c95d;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #fff4cf;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .didi-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .didi-avatar.speaking {
+      animation: didi-speaking 0.8s ease-in-out infinite alternate;
+      box-shadow: 0 0 0 7px rgba(244,201,93,0.35), 0 4px 12px rgba(0,0,0,0.16);
+    }
+    @keyframes didi-speaking {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+
+    /* Header */
+    .chat-header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 15px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .chat-header-content { flex: 1; min-width: 0; }
+    .language-select {
+      margin-top: 7px;
+      padding: 4px 7px;
+      border: 1px solid rgba(255,255,255,0.65);
+      border-radius: 4px;
+      background: rgba(255,255,255,0.14);
+      color: white;
+      font-size: 11px;
+    }
+    .language-select option { color: #222; }
+    .chat-header h3 { font-size: 16px; margin-bottom: 2px; }
+    .chat-header p { font-size: 11px; opacity: 0.85; }
+    .close-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+
+    /* Mode Selection Switcher */
+    .mode-switch {
+      display: flex;
+      background: #e9ecef;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #666;
+    }
+    .mode-btn.active {
+      background: white;
+      color: var(--primary-color);
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    /* Messages Box */
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background-color: var(--bg-color);
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+    .message.bot {
+      background-color: var(--bot-msg);
+      color: var(--text-dark);
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+    .message.user {
+      background-color: var(--user-msg);
+      color: var(--text-dark);
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+
+    /* Input Footer */
+    .chat-input-area {
+      padding: 10px;
+      background-color: white;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover { background-color: #f0f0f0; }
+    .icon-btn.recording { background-color: #ff4d4d; color: white; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* File Attachment Preview */
+    .attachment-preview {
+      padding: 5px 15px;
+      background: #e9ecef;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Launcher Button -->
+  <button class="chat-launcher" id="launcherBtn">
+    💬 मदद सहायता (Helpdesk)
+  </button>
+
+  <!-- Chat Widget Container -->
+  <div class="chat-container hidden" id="chatContainer">
+    <div class="chat-header">
+      <div class="didi-avatar" id="didiAvatar" aria-label="JEEViKA Didi">
+        <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=180&q=85" alt="JEEViKA Didi" />
+      </div>
+      <div class="chat-header-content">
+        <h3>SMART DIDI - JEEViKA</h3>
+        <select id="languageSelect" class="language-select" aria-label="Voice language">
+          <option value="hi-IN">हिंदी</option>
+          <option value="en-IN">English</option>
+          <option value="bn-IN">বাংলা</option>
+          <option value="mr-IN">मराठी</option>
+        </select>
+      </div>
+      <button class="close-btn" id="closeBtn">&times;</button>
+    </div>
+
+    <!-- Mode Switcher -->
+    <div class="mode-switch">
+      <button class="mode-btn active" id="modeComplaint">दर्ज करें (New Grievance)</button>
+      <button class="mode-btn" id="modeStatus">स्थिति जांचें (Check Status)</button>
+    </div>
+
+    <!-- Messages Window -->
+    <div class="chat-messages" id="messageArea">
+      <div class="message bot">
+        नमस्कार! ग्रामीण विकास विभाग शिकायत निवारण सेवा में आपका स्वागत है। आप अपनी समस्या बताकर शिकायत दर्ज करा सकते हैं या शिकायत संख्या देकर स्थिति जान सकते हैं।
+      </div>
+    </div>
+
+    <!-- File Attachment Indicator -->
+    <div class="attachment-preview hidden" id="attachmentPreview">
+      <span id="fileNameDisplay">file.pdf</span>
+      <button style="border:none; background:none; cursor:pointer;" id="clearFileBtn">❌</button>
+    </div>
+
+    <!-- Input Footer Controls -->
+    <div class="chat-input-area">
+      <label for="fileInput" class="icon-btn" title="दस्तावेज़ जोड़ें">📎</label>
+      <input type="file" id="fileInput" style="display: none;" accept=".pdf,.jpg,.jpeg,.png" />
+
+      <button class="icon-btn" id="micBtn" title="बोलकर दर्ज करें">🎤</button>
+
+      <input type="text" class="chat-input" id="textInput" placeholder="संदेश लिखें या बोलें..." />
+      
+      <button class="icon-btn" id="sendBtn" style="color: var(--primary-color);">➔</button>
+    </div>
+  </div>
+
+  <script>
+    // System Configurations
+    const API_BASE_URL = "/api/v1";
+    let sessionId = "SESS_" + Math.random().toString(36).substring(2, 9);
+    let activeMode = "COMPLAINT"; // 'COMPLAINT' or 'STATUS'
+    let selectedFile = null;
+
+    // DOM Elements
+    const launcherBtn = document.getElementById("launcherBtn");
+    const chatContainer = document.getElementById("chatContainer");
+    const closeBtn = document.getElementById("closeBtn");
+    const messageArea = document.getElementById("messageArea");
+    const textInput = document.getElementById("textInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+    const fileInput = document.getElementById("fileInput");
+    const attachmentPreview = document.getElementById("attachmentPreview");
+    const fileNameDisplay = document.getElementById("fileNameDisplay");
+    const clearFileBtn = document.getElementById("clearFileBtn");
+    const modeComplaint = document.getElementById("modeComplaint");
+    const modeStatus = document.getElementById("modeStatus");
+    const didiAvatar = document.getElementById("didiAvatar");
+    const languageSelect = document.getElementById("languageSelect");
+    let voiceLanguage = languageSelect.value;
+
+    languageSelect.addEventListener("change", () => {
+      voiceLanguage = languageSelect.value;
+      if (recognition) recognition.lang = voiceLanguage;
+    });
+
+    // UI Toggle Events
+    launcherBtn.addEventListener("click", () => chatContainer.classList.remove("hidden"));
+    closeBtn.addEventListener("click", () => chatContainer.classList.add("hidden"));
+
+    // Mode Switcher Events
+    modeComplaint.addEventListener("click", () => {
+      activeMode = "COMPLAINT";
+      modeComplaint.classList.add("active");
+      modeStatus.classList.remove("active");
+      appendMessage("bot", "आप नई शिकायत दर्ज कर रहे हैं। कृपया अपनी शिकायत का विवरण लिखें:");
+    });
+
+    modeStatus.addEventListener("click", () => {
+      activeMode = "STATUS";
+      modeStatus.classList.add("active");
+      modeComplaint.classList.remove("active");
+      appendMessage("bot", "कृपया अपनी टिकट / शिकायत संख्या प्रदान करें (उदा: TKT_00001):");
+    });
+
+    // Append Message to UI
+    function appendMessage(sender, text) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message", sender);
+      msgDiv.innerText = text;
+      messageArea.appendChild(msgDiv);
+      messageArea.scrollTop = messageArea.scrollHeight;
+
+      // Speak response if from Bot
+      if (sender === "bot") {
+        speakText(text);
+      }
+    }
+
+    // Handle Send Action
+    async function handleSend() {
+      const input = textInput.value.trim();
+      if (!input && !selectedFile) return;
+
+      if (input) {
+        appendMessage("user", input);
+        textInput.value = "";
+      }
+
+      // 1. Process Attachment Upload if selected
+      if (selectedFile) {
+        await uploadFileHandler(selectedFile);
+        selectedFile = null;
+        attachmentPreview.classList.add("hidden");
+        fileInput.value = "";
+      }
+
+      // 2. Dispatch payload based on active mode
+      if (activeMode === "STATUS") {
+        await fetchTicketStatus(input);
+      } else {
+        await sendComplaintMessage(input);
+      }
+    }
+
+    sendBtn.addEventListener("click", handleSend);
+    textInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
+
+    // File Attachment Handler
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        selectedFile = e.target.files[0];
+        if (selectedFile.size > 5 * 1024 * 1024) {
+          alert("फ़ाइल 5MB से छोटी होनी चाहिए (File must be under 5MB).");
+          selectedFile = null;
+          return;
+        }
+        fileNameDisplay.innerText = selectedFile.name;
+        attachmentPreview.classList.remove("hidden");
+      }
+    });
+
+    clearFileBtn.addEventListener("click", () => {
+      selectedFile = null;
+      fileInput.value = "";
+      attachmentPreview.classList.add("hidden");
+    });
+
+    // API Integration: Ticket Status Lookup
+    async function fetchTicketStatus(rawInput) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/ticket-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ raw_input: rawInput })
+        });
+        const res = await response.json();
+
+        if (res.success && res.officialData) {
+          const d = res.officialData;
+          const statusCard = `टिकट संख्या: ${d.ticketNumber}\nनाम: ${d.name}\nमोबाइल: ${d.contact}\nईमेल: ${d.email}\nशिकायत: ${d.grievanceDescription}\nजिला: ${d.district}\nब्लॉक: ${d.block}\nपंचायत: ${d.panchayat}\nगांव: ${d.village}\nवार्ड: ${d.ward}\nपता: ${d.address}\nस्थिति: ${d.currentStatus}`;
+          appendMessage("bot", statusCard);
+        } else {
+          appendMessage("bot", res.message || "शिकायत की जानकारी प्राप्त करने में असमर्थ।");
+        }
+      } catch (err) {
+        appendMessage("bot", "सर्वर से संपर्क करने में त्रुटि (Network Error).");
+      }
+    }
+
+    // API Integration: Sequential Complaint Step
+    async function sendComplaintMessage(userInput) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/complaint/message?session_id=${sessionId}&user_input=${encodeURIComponent(userInput)}`, {
+          method: "POST"
+        });
+        const res = await response.json();
+        appendMessage("bot", res.reply);
+      } catch (err) {
+        appendMessage("bot", "प्रक्रिया पूरी करने में त्रुटि (Connection failed).");
+      }
+    }
+
+    // API Integration: File Upload
+    async function uploadFileHandler(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch(`${API_BASE_URL}/complaint/upload-document?session_id=${sessionId}`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          appendMessage("bot", `संलग्नक '${file.name}' सफलतापूर्वक अपलोड किया गया।`);
+        }
+      } catch (err) {
+        appendMessage("bot", "फ़ाइल अपलोड करने में असमर्थ।");
+      }
+    }
+
+    // Voice Input: Web Speech Recognition (Hindi / Hinglish / English)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = voiceLanguage;
+
+      recognition.onstart = () => micBtn.classList.add("recording");
+      recognition.onend = () => micBtn.classList.remove("recording");
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        textInput.value = transcript;
+        handleSend();
+      };
+
+      micBtn.addEventListener("click", () => {
+        if (micBtn.classList.contains("recording")) {
+          recognition.stop();
+        } else {
+          recognition.start();
+        }
+      });
+    } else {
+      micBtn.style.display = "none"; // Hide mic if browser lacks STT support
+    }
+
+    // Voice Output: Web Speech Synthesis (TTS)
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Cancel any ongoing audio
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = voiceLanguage;
+        utterance.rate = 0.95; // Slightly slower for clarity in rural contexts
+        didiAvatar.classList.add("speaking");
+        utterance.onend = () => didiAvatar.classList.remove("speaking");
+        utterance.onerror = () => didiAvatar.classList.remove("speaking");
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+  </script>
+</body>
+</html>
